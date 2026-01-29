@@ -9,7 +9,7 @@ export const COLORS = [
 // Current video state
 export const currentVideo = writable(null);
 export const videoInfo = writable(null);
-export const frameStep = writable(1);
+export const frameStep = writable(15); // Default to every 15th frame (~2fps for 30fps video)
 export const frameIndices = writable([]);
 export const currentFrameIndex = writable(0);
 

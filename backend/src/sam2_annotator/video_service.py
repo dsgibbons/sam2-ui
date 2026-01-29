@@ -1,6 +1,8 @@
 """Video processing service."""
 
+import asyncio
 import hashlib
+import logging
 from pathlib import Path
 
 import cv2
@@ -8,6 +10,8 @@ import numpy as np
 
 from .config import settings
 from .models import VideoInfo
+
+logger = logging.getLogger(__name__)
 
 
 def get_video_hash(video_path: str) -> str:
@@ -18,11 +22,15 @@ def get_video_hash(video_path: str) -> str:
 def get_video_info(video_path: str) -> VideoInfo:
     """Get information about a video file."""
     full_path = settings.video_dir / video_path
+    logger.debug(f"Getting video info for: {full_path}")
+
     if not full_path.exists():
+        logger.error(f"Video not found: {video_path}")
         raise FileNotFoundError(f"Video not found: {video_path}")
 
     cap = cv2.VideoCapture(str(full_path))
     if not cap.isOpened():
+        logger.error(f"Cannot open video: {video_path}")
         raise ValueError(f"Cannot open video: {video_path}")
 
     try:
@@ -31,6 +39,8 @@ def get_video_info(video_path: str) -> VideoInfo:
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         duration = frame_count / fps if fps > 0 else 0
+
+        logger.info(f"Video info: {video_path} - {frame_count} frames, {fps:.1f} fps, {width}x{height}")
 
         return VideoInfo(
             name=Path(video_path).name,
@@ -47,8 +57,10 @@ def get_video_info(video_path: str) -> VideoInfo:
 
 def list_videos() -> list[VideoInfo]:
     """List all MP4 videos in the video directory."""
+    logger.info(f"Listing videos in: {settings.video_dir}")
     videos = []
     if not settings.video_dir.exists():
+        logger.warning(f"Video directory does not exist: {settings.video_dir}")
         return videos
 
     for video_file in settings.video_dir.rglob("*.mp4"):
@@ -56,16 +68,16 @@ def list_videos() -> list[VideoInfo]:
             rel_path = video_file.relative_to(settings.video_dir)
             info = get_video_info(str(rel_path))
             videos.append(info)
-        except Exception:
-            # Skip videos that can't be opened
-            pass
+        except Exception as e:
+            logger.warning(f"Skipping video {video_file}: {e}")
 
+    logger.info(f"Found {len(videos)} videos")
     return videos
 
 
-def extract_frames(video_path: str, frame_step: int = 1) -> tuple[Path, list[int]]:
+def _extract_frames_sync(video_path: str, frame_step: int = 1) -> tuple[Path, list[int]]:
     """
-    Extract frames from video with given step.
+    Extract frames from video with given step (synchronous implementation).
     Returns the cache directory and list of frame indices.
     """
     full_path = settings.video_dir / video_path
@@ -81,18 +93,23 @@ def extract_frames(video_path: str, frame_step: int = 1) -> tuple[Path, list[int
     index_file = cache_dir / "frame_indices.txt"
     if index_file.exists():
         with open(index_file) as f:
-            indices = [int(line.strip()) for line in f.readlines()]
+            indices = [int(line.strip()) for line in f.readlines() if line.strip()]
         # Verify at least first frame exists
-        if (cache_dir / f"frame_{indices[0]:06d}.jpg").exists():
+        if indices and (cache_dir / f"frame_{indices[0]:06d}.jpg").exists():
+            logger.info(f"Using cached frames from {cache_dir} ({len(indices)} frames)")
             return cache_dir, indices
+
+    logger.info(f"Extracting frames from {video_path} with step={frame_step}")
 
     # Extract frames
     cap = cv2.VideoCapture(str(full_path))
     if not cap.isOpened():
         raise ValueError(f"Cannot open video: {video_path}")
 
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_indices = []
     frame_idx = 0
+    extracted_count = 0
 
     try:
         while True:
@@ -104,6 +121,11 @@ def extract_frames(video_path: str, frame_step: int = 1) -> tuple[Path, list[int
                 frame_path = cache_dir / f"frame_{frame_idx:06d}.jpg"
                 cv2.imwrite(str(frame_path), frame)
                 frame_indices.append(frame_idx)
+                extracted_count += 1
+
+                # Log progress every 100 frames
+                if extracted_count % 100 == 0:
+                    logger.info(f"Extracted {extracted_count} frames ({frame_idx}/{total_frames})")
 
             frame_idx += 1
     finally:
@@ -114,7 +136,22 @@ def extract_frames(video_path: str, frame_step: int = 1) -> tuple[Path, list[int
         for idx in frame_indices:
             f.write(f"{idx}\n")
 
+    logger.info(f"Extracted {len(frame_indices)} frames to {cache_dir}")
     return cache_dir, frame_indices
+
+
+async def extract_frames_async(video_path: str, frame_step: int = 1) -> tuple[Path, list[int]]:
+    """
+    Extract frames from video with given step (async wrapper).
+    Returns the cache directory and list of frame indices.
+    """
+    # Run the blocking operation in a thread pool
+    return await asyncio.to_thread(_extract_frames_sync, video_path, frame_step)
+
+
+def extract_frames(video_path: str, frame_step: int = 1) -> tuple[Path, list[int]]:
+    """Synchronous version for non-async contexts."""
+    return _extract_frames_sync(video_path, frame_step)
 
 
 def get_frame(video_path: str, frame_idx: int, frame_step: int = 1) -> np.ndarray:
@@ -124,9 +161,13 @@ def get_frame(video_path: str, frame_idx: int, frame_step: int = 1) -> np.ndarra
     frame_path = cache_dir / f"frame_{frame_idx:06d}.jpg"
 
     if frame_path.exists():
-        return cv2.imread(str(frame_path))
+        frame = cv2.imread(str(frame_path))
+        if frame is not None:
+            return frame
+        logger.warning(f"Failed to read cached frame: {frame_path}")
 
     # Fall back to direct extraction
+    logger.debug(f"Direct extraction of frame {frame_idx} from {video_path}")
     full_path = settings.video_dir / video_path
     cap = cv2.VideoCapture(str(full_path))
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
