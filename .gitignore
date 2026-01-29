@@ -14,8 +14,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Python libraries (not frontend/src/lib)
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -180,6 +181,25 @@ cython_debug/
 # Ignore directories containing user credentials, local state, and settings.
 # Learn more at https://abstra.io/docs
 .abstra/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Frontend build
+frontend/dist/
+
+# Application data
+videos/
+checkpoints/
+annotations/
+frame_cache/
+
+# Logs
+*.log
 
 # Visual Studio Code
 #  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
