@@ -24,37 +24,44 @@
   } from '../stores/annotation.js';
   import { extractFrames, getFrameUrl, segmentFrame } from '../api.js';
 
-  let container;
-  let canvas;
-  let ctx;
+  let container = $state(null);
+  let canvas = $state(null);
+  let ctx = $state(null);
   let frameImage = new Image();
-  let maskImages = {};
-  let isDrawingBox = false;
-  let boxStart = null;
-  let previewMask = null;
+  let maskImages = $state({});
+  let isDrawingBox = $state(false);
+  let boxStart = $state(null);
+  let previewMask = $state(null);
 
   // Dimensions
-  let displayWidth = 0;
-  let displayHeight = 0;
-  let scale = 1;
-  let offsetX = 0;
-  let offsetY = 0;
+  let displayWidth = $state(0);
+  let displayHeight = $state(0);
+  let scale = $state(1);
+  let offsetX = $state(0);
+  let offsetY = $state(0);
 
-  $: if ($currentVideo && $frameStep) {
-    loadFrames();
-  }
+  // Effects for reactive updates
+  $effect(() => {
+    if ($currentVideo && $frameStep) {
+      loadFrames();
+    }
+  });
 
-  $: if ($frameIndices.length > 0) {
-    loadCurrentFrame();
-  }
+  $effect(() => {
+    if ($frameIndices.length > 0) {
+      loadCurrentFrame();
+    }
+  });
 
-  $: {
+  $effect(() => {
     // Load mask images when masks change
     loadMaskImages($currentFrameMasks);
-  }
+  });
 
   onMount(() => {
-    ctx = canvas.getContext('2d');
+    if (canvas) {
+      ctx = canvas.getContext('2d');
+    }
     window.addEventListener('resize', handleResize);
     handleResize();
   });
@@ -64,7 +71,7 @@
   });
 
   function handleResize() {
-    if (!container) return;
+    if (!container || !canvas) return;
     const rect = container.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = rect.height;
@@ -393,36 +400,41 @@
         break;
     }
   }
+
+  function handleMouseLeave() {
+    isDrawingBox = false;
+    boxStart = null;
+  }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="video-player" bind:this={container}>
   <canvas
     bind:this={canvas}
-    on:click={handleClick}
-    on:mousedown={handleMouseDown}
-    on:mousemove={handleMouseMove}
-    on:mouseup={handleMouseUp}
-    on:mouseleave={() => { isDrawingBox = false; boxStart = null; }}
+    onclick={handleClick}
+    onmousedown={handleMouseDown}
+    onmousemove={handleMouseMove}
+    onmouseup={handleMouseUp}
+    onmouseleave={handleMouseLeave}
   ></canvas>
 
   <div class="controls">
     <div class="nav-controls">
-      <button class="secondary" on:click={() => handleFrameChange(-10)} title="Back 10 frames">
+      <button class="secondary" onclick={() => handleFrameChange(-10)} title="Back 10 frames">
         ⏪
       </button>
-      <button class="secondary" on:click={() => handleFrameChange(-1)} title="Previous frame (←)">
+      <button class="secondary" onclick={() => handleFrameChange(-1)} title="Previous frame (←)">
         ◀
       </button>
       <span class="frame-info">
         Frame {$currentFrameIndex + 1} / {$frameIndices.length}
         <span class="frame-idx">(#{$currentFrameIdx})</span>
       </span>
-      <button class="secondary" on:click={() => handleFrameChange(1)} title="Next frame (→)">
+      <button class="secondary" onclick={() => handleFrameChange(1)} title="Next frame (→)">
         ▶
       </button>
-      <button class="secondary" on:click={() => handleFrameChange(10)} title="Forward 10 frames">
+      <button class="secondary" onclick={() => handleFrameChange(10)} title="Forward 10 frames">
         ⏩
       </button>
     </div>
@@ -435,17 +447,17 @@
           min="1"
           max="60"
           value={$frameStep}
-          on:change={handleFrameStepChange}
+          onchange={handleFrameStepChange}
         />
       </label>
     </div>
 
     <div class="annotation-controls">
       {#if $currentPoints.length > 0 || $currentBox}
-        <button class="secondary" on:click={handleClear}>
+        <button class="secondary" onclick={handleClear}>
           Clear (Esc)
         </button>
-        <button class="primary" on:click={handleApply}>
+        <button class="primary" onclick={handleApply}>
           Apply (Enter)
         </button>
       {/if}

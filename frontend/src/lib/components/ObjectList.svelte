@@ -7,7 +7,7 @@
     currentFrameIdx,
   } from '../stores/annotation.js';
 
-  let newObjectName = '';
+  let newObjectName = $state('');
 
   function handleAddObject() {
     const name = newObjectName.trim() || undefined;
@@ -43,9 +43,9 @@
       type="text"
       placeholder="Object name..."
       bind:value={newObjectName}
-      on:keydown={handleKeydown}
+      onkeydown={handleKeydown}
     />
-    <button class="primary" on:click={handleAddObject}>Add</button>
+    <button class="primary" onclick={handleAddObject}>Add</button>
   </div>
 
   <div class="objects">
@@ -58,8 +58,8 @@
           class:selected={$selectedObjectId === obj.object_id}
           role="button"
           tabindex="0"
-          on:click={() => selectObject(obj.object_id)}
-          on:keydown={(e) => e.key === 'Enter' && selectObject(obj.object_id)}
+          onclick={() => selectObject(obj.object_id)}
+          onkeydown={(e) => e.key === 'Enter' && selectObject(obj.object_id)}
         >
           <span
             class="color-dot"
@@ -73,7 +73,7 @@
           {/if}
           <button
             class="remove-btn"
-            on:click={(e) => handleRemove(e, obj.object_id)}
+            onclick={(e) => handleRemove(e, obj.object_id)}
             title="Remove object"
           >
             ×
@@ -154,6 +154,8 @@
     border-radius: 6px;
     margin-bottom: 4px;
     text-align: left;
+    cursor: pointer;
+    border: 1px solid transparent;
   }
 
   .object-item:hover {

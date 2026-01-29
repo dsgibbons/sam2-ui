@@ -16,9 +16,9 @@
   } from '../stores/annotation.js';
   import { propagateMasks, saveAnnotations, exportCoco } from '../api.js';
 
-  $: hasObjects = $objects.length > 0;
-  $: hasAnnotatedObjects = $objects.some(o => o.frame_idx !== null);
-  $: hasMasks = Object.keys($maskResults).length > 0;
+  let hasObjects = $derived($objects.length > 0);
+  let hasAnnotatedObjects = $derived($objects.some(o => o.frame_idx !== null));
+  let hasMasks = $derived(Object.keys($maskResults).length > 0);
 
   async function handlePropagate() {
     if (!hasAnnotatedObjects) return;
@@ -119,7 +119,7 @@
     <div class="button-group">
       <button
         class:active={$interactionMode === 'point'}
-        on:click={() => interactionMode.set('point')}
+        onclick={() => interactionMode.set('point')}
         title="Point mode - click to add points"
       >
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
@@ -129,7 +129,7 @@
       </button>
       <button
         class:active={$interactionMode === 'box'}
-        on:click={() => interactionMode.set('box')}
+        onclick={() => interactionMode.set('box')}
         title="Box mode - drag to draw bounding box"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
@@ -147,7 +147,7 @@
         <button
           class:active={$isPositivePoint}
           class="positive"
-          on:click={() => isPositivePoint.set(true)}
+          onclick={() => isPositivePoint.set(true)}
           title="Positive point - include this region"
         >
           + Include
@@ -155,7 +155,7 @@
         <button
           class:active={!$isPositivePoint}
           class="negative"
-          on:click={() => isPositivePoint.set(false)}
+          onclick={() => isPositivePoint.set(false)}
           title="Negative point - exclude this region"
         >
           − Exclude
@@ -169,7 +169,7 @@
   <div class="tool-group">
     <button
       class="primary"
-      on:click={handlePropagate}
+      onclick={handlePropagate}
       disabled={!hasAnnotatedObjects || $isLoading}
       title="Propagate masks through entire video"
     >
@@ -177,7 +177,7 @@
     </button>
     <button
       class="success"
-      on:click={handleSave}
+      onclick={handleSave}
       disabled={!hasMasks || $isLoading}
       title="Save annotations to disk"
     >
@@ -185,7 +185,7 @@
     </button>
     <button
       class="secondary"
-      on:click={handleExportCoco}
+      onclick={handleExportCoco}
       disabled={!hasMasks || $isLoading}
       title="Export as COCO JSON"
     >

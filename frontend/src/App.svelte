@@ -18,7 +18,7 @@
   } from './lib/stores/annotation.js';
   import { getConfig, loadModel } from './lib/api.js';
 
-  let configLoaded = false;
+  let configLoaded = $state(false);
 
   onMount(async () => {
     try {
@@ -43,8 +43,7 @@
     }
   });
 
-  function handleVideoSelect(event) {
-    const video = event.detail;
+  function handleVideoSelect(video) {
     resetAnnotations();
     currentVideo.set(video.path);
     videoInfo.set(video);
@@ -61,7 +60,7 @@
   <header>
     <h1>SAM2 Video Annotator</h1>
     {#if $currentVideo}
-      <button class="secondary" on:click={handleBack}>
+      <button class="secondary" onclick={handleBack}>
         ← Back to Videos
       </button>
     {/if}
@@ -74,7 +73,7 @@
         <p>{$loadingMessage}</p>
       </div>
     {:else if !$currentVideo}
-      <VideoSelector on:select={handleVideoSelect} />
+      <VideoSelector onselect={handleVideoSelect} />
     {:else}
       <div class="workspace">
         <aside class="sidebar">
@@ -93,7 +92,7 @@
   {#if $error}
     <div class="error-toast">
       <span>{$error}</span>
-      <button on:click={() => error.set(null)}>×</button>
+      <button onclick={() => error.set(null)}>×</button>
     </div>
   {/if}
 </div>

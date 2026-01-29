@@ -1,12 +1,12 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import { getVideos } from '../api.js';
   import { isLoading, loadingMessage } from '../stores/annotation.js';
 
-  const dispatch = createEventDispatcher();
+  let { onselect } = $props();
 
-  let videos = [];
-  let loadError = null;
+  let videos = $state([]);
+  let loadError = $state(null);
 
   onMount(async () => {
     await loadVideos();
@@ -36,7 +36,7 @@
   }
 
   function selectVideo(video) {
-    dispatch('select', video);
+    onselect?.(video);
   }
 </script>
 
@@ -46,18 +46,18 @@
   {#if loadError}
     <div class="error">
       <p>Failed to load videos: {loadError}</p>
-      <button class="primary" on:click={loadVideos}>Retry</button>
+      <button class="primary" onclick={loadVideos}>Retry</button>
     </div>
   {:else if videos.length === 0}
     <div class="empty">
       <p>No videos found in the configured directory.</p>
       <p class="hint">Add MP4 files to the video directory and refresh.</p>
-      <button class="secondary" on:click={loadVideos}>Refresh</button>
+      <button class="secondary" onclick={loadVideos}>Refresh</button>
     </div>
   {:else}
     <div class="video-grid">
       {#each videos as video}
-        <button class="video-card" on:click={() => selectVideo(video)}>
+        <button class="video-card" onclick={() => selectVideo(video)}>
           <div class="video-preview">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
